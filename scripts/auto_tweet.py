@@ -19,65 +19,60 @@ import google.generativeai as genai
 def setup_apis():
     """APIクライアントをセットアップ"""
     # Gemini API
-    genai.configure(api_key=os.environ['GEMINI_API_KEY'])
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    model = genai.GenerativeModel("gemini-2.0-flash-exp")
     
     # Twitter API
     auth = tweepy.OAuthHandler(
-        os.environ['TWITTER_API_KEY'],
-        os.environ['TWITTER_API_SECRET']
+        os.environ["TWITTER_API_KEY"],
+        os.environ["TWITTER_API_SECRET"]
     )
     auth.set_access_token(
-        os.environ['TWITTER_ACCESS_TOKEN'],
-        os.environ['TWITTER_ACCESS_TOKEN_SECRET']
+        os.environ["TWITTER_ACCESS_TOKEN"],
+        os.environ["TWITTER_ACCESS_TOKEN_SECRET"]
     )
     twitter_api = tweepy.API(auth)
     
     return model, twitter_api
 
-def generate_quote(model):
-    """Gemini APIを使用して名言を生成"""
-    prompts = [
-        "心に響く名言や格言を1つ生成してください。日本語で、作者名も含めて教えてください。形式は「名言内容」- 作者名 でお願いします。",
-        "人生について考えさせられる深い名言を生成してください。日本語で、作者名も含めて教えてください。形式は「名言内容」- 作者名 でお願いします。",
-        "成功や努力に関する励ましの名言を生成してください。日本語で、作者名も含めて教えてください。形式は「名言内容」- 作者名 でお願いします。",
-        "愛や友情について心温まる名言を生成してください。日本語で、作者名も含めて教えてください。形式は「名言内容」- 作者名 でお願いします。"
-    ]
-    
+def get_english_quote():
+    """ZenQuotes APIから英語の名言を取得"""
     try:
-        prompt = random.choice(prompts)
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        
-        # 名言と作者を分離
-        if '」-' in text:
-            parts = text.split('」-')
-            quote = parts[0].replace('「', '').strip()
-            author = parts[1].strip()
-        elif '"' in text and '-' in text:
-            parts = text.split('-')
-            quote = parts[0].strip().replace('"', '').replace('"', '')
-            author = parts[1].strip()
-        else:
-            # フォーマットが異なる場合の処理
-            parts = text.split('-')
-            if len(parts) >= 2:
-                quote = parts[0].strip().replace('「', '').replace('」', '').replace('"', '')
-                author = parts[1].strip()
-            else:
-                quote = text.strip()
-                author = "Unknown"
-        
-        return quote, author
+        response = requests.get("https://zenquotes.io/api/random")
+        response.raise_for_status() # HTTPエラーがあれば例外を発生させる
+        data = response.json()
+        if data and len(data) > 0:
+            quote = data[0]["q"]
+            author = data[0]["a"]
+            return quote, author
     except Exception as e:
-        print(f"Error generating quote: {e}")
-        # フォールバック名言
-        fallback_quotes = [
-            ("人生は一度きり。後悔のないように生きよう。", "Anonymous"),
-            ("小さな一歩が大きな変化を生む。", "Anonymous"),
-            ("困難は成長の機会である。", "Anonymous")
-        ]
-        return random.choice(fallback_quotes)
+        print(f"Error fetching English quote from ZenQuotes: {e}")
+    return None, None
+
+def translate_quote(model, text):
+    """Gemini APIを使用してテキストを日本語に翻訳"""
+    try:
+        prompt = f"以下の英語の名言を日本語に翻訳してください。\n\n{text}"
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"Error translating quote: {e}")
+    return ""
+
+def generate_quote(model):
+    """英語の名言を取得し、日本語に翻訳して返す"""
+    english_quote, english_author = get_english_quote()
+    if english_quote and english_author:
+        japanese_translation = translate_quote(model, english_quote)
+        return english_quote, english_author, japanese_translation
+    
+    # フォールバック名言
+    fallback_quotes = [
+        ("Life is what happens when you\\'re busy making other plans.", "John Lennon", "人生とは、他の計画を立てるのに忙しいときに起こるものだ。"),
+        ("The only way to do great work is to love what you do.", "Steve Jobs", "素晴らしい仕事をする唯一の方法は、自分のやっていることを愛することだ。"),
+        ("In three words I can sum up everything I\\'ve learned about life: it goes on.", "Robert Frost", "人生について学んだすべてを3つの言葉で要約できる。それは続くということだ。")
+    ]
+    return random.choice(fallback_quotes)
 
 def get_background_image():
     """背景画像を取得"""
@@ -91,24 +86,24 @@ def get_background_image():
     ]
     
     try:
-        if 'UNSPLASH_ACCESS_KEY' in os.environ:
+        if "UNSPLASH_ACCESS_KEY" in os.environ:
             # Unsplash APIを使用
             query = random.choice(background_types)
             url = f"https://api.unsplash.com/photos/random"
             params = {
-                'query': query,
-                'orientation': 'landscape',
-                'w': 800,
-                'h': 600
+                "query": query,
+                "orientation": "landscape",
+                "w": 800,
+                "h": 600
             }
             headers = {
-                'Authorization': f"Client-ID {os.environ['UNSPLASH_ACCESS_KEY']}"
+                "Authorization": f"Client-ID {os.environ['UNSPLASH_ACCESS_KEY']}"
             }
             
             response = requests.get(url, params=params, headers=headers)
             if response.status_code == 200:
                 data = response.json()
-                image_url = data['urls']['regular']
+                image_url = data["urls"]["regular"]
                 image_response = requests.get(image_url)
                 if image_response.status_code == 200:
                     return Image.open(BytesIO(image_response.content))
@@ -116,7 +111,7 @@ def get_background_image():
         print(f"Error fetching background image: {e}")
     
     # フォールバック: グラデーション背景を生成
-    img = Image.new('RGB', (800, 600), color='#667eea')
+    img = Image.new("RGB", (800, 600), color="#667eea")
     draw = ImageDraw.Draw(img)
     
     # 簡単なグラデーション効果
@@ -128,14 +123,14 @@ def get_background_image():
     
     return img
 
-def create_quote_image(quote, author, background_img):
+def create_quote_image(quote, author, japanese_translation, background_img):
     """名言画像を生成"""
     # 背景画像をリサイズ
     background_img = background_img.resize((800, 600), Image.Resampling.LANCZOS)
     
     # オーバーレイを追加
-    overlay = Image.new('RGBA', (800, 600), (0, 0, 0, 100))
-    background_img = Image.alpha_composite(background_img.convert('RGBA'), overlay)
+    overlay = Image.new("RGBA", (800, 600), (0, 0, 0, 100))
+    background_img = Image.alpha_composite(background_img.convert("RGBA"), overlay)
     
     draw = ImageDraw.Draw(background_img)
     
@@ -143,10 +138,12 @@ def create_quote_image(quote, author, background_img):
         # フォントを設定（システムフォントを使用）
         quote_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 36)
         author_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
+        japanese_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20) # 日本語訳用フォント
     except:
         # フォントが見つからない場合はデフォルトフォント
         quote_font = ImageFont.load_default()
         author_font = ImageFont.load_default()
+        japanese_font = ImageFont.load_default()
     
     # テキストを描画
     text_color = (255, 255, 255)
@@ -187,26 +184,37 @@ def create_quote_image(quote, author, background_img):
     author_x = (800 - author_width) // 2
     author_y = start_y + len(lines) * 50 + 30
     draw.text((author_x, author_y), author_text, fill=text_color, font=author_font)
-    
-    return background_img.convert('RGB')
 
-def post_to_twitter(twitter_api, quote, author, image):
+    # 日本語訳を描画
+    if japanese_translation:
+        japanese_text = f"({japanese_translation})"
+        bbox = draw.textbbox((0, 0), japanese_text, font=japanese_font)
+        japanese_width = bbox[2] - bbox[0]
+        japanese_x = (800 - japanese_width) // 2
+        japanese_y = author_y + 30
+        draw.text((japanese_x, japanese_y), japanese_text, fill=text_color, font=japanese_font)
+    
+    return background_img.convert("RGB")
+
+def post_to_twitter(twitter_api, quote, author, japanese_translation, image):
     """Twitterに投稿"""
     try:
         # 画像を一時ファイルに保存
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-            image.save(tmp_file.name, 'PNG')
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
+            image.save(tmp_file.name, "PNG")
             
             # ツイート文を作成
-            tweet_text = f'"{quote}" - {author}\n\n#名言 #格言 #inspiration #quote'
+            tweet_text = f"\"{quote}\" - {author}\n({japanese_translation})\n\n#名言 #格言 #inspiration #quote"
             
             # 文字数制限をチェック
             if len(tweet_text) > 280:
                 # 長すぎる場合は短縮
-                max_quote_length = 200 - len(f' - {author}\n\n#名言 #格言 #inspiration #quote')
-                if len(quote) > max_quote_length:
-                    quote = quote[:max_quote_length-3] + '...'
-                tweet_text = f'"{quote}" - {author}\n\n#名言 #格言 #inspiration #quote'
+                # 日本語訳を含めた長さを考慮
+                base_len = len(f" - {author}\n()\n\n#名言 #格言 #inspiration #quote")
+                max_english_quote_len = 280 - base_len - len(japanese_translation) - 5 # 5は余裕
+                if len(quote) > max_english_quote_len:
+                    quote = quote[:max_english_quote_len-3] + "..."
+                tweet_text = f"\"{quote}\" - {author}\n({japanese_translation})\n\n#名言 #格言 #inspiration #quote"
             
             # 画像をアップロード
             media = twitter_api.media_upload(tmp_file.name)
@@ -230,17 +238,17 @@ def main():
         model, twitter_api = setup_apis()
         
         print("Generating quote...")
-        quote, author = generate_quote(model)
-        print(f"Generated quote: '{quote}' - {author}")
+        english_quote, english_author, japanese_translation = generate_quote(model)
+        print(f"Generated quote: \'{english_quote}\' - {english_author} ({japanese_translation})")
         
         print("Getting background image...")
         background_img = get_background_image()
         
         print("Creating quote image...")
-        quote_image = create_quote_image(quote, author, background_img)
+        quote_image = create_quote_image(english_quote, english_author, japanese_translation, background_img)
         
         print("Posting to Twitter...")
-        post_to_twitter(twitter_api, quote, author, quote_image)
+        post_to_twitter(twitter_api, english_quote, english_author, japanese_translation, quote_image)
         
         print("Successfully completed auto tweet!")
         
