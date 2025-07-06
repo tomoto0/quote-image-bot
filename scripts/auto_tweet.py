@@ -23,17 +23,26 @@ def setup_apis():
     model = genai.GenerativeModel("gemini-2.0-flash-exp")
     
     # Twitter API
-    auth = tweepy.OAuthHandler(
+    # tweepy.Clientを使用するように変更
+    client = tweepy.Client(
+        consumer_key=os.environ["TWITTER_API_KEY"],
+        consumer_secret=os.environ["TWITTER_API_SECRET"],
+        access_token=os.environ["TWITTER_ACCESS_TOKEN"],
+        access_token_secret=os.environ["TWITTER_ACCESS_TOKEN_SECRET"]
+    )
+    
+    # v1.1 API for media upload
+    auth_v1_1 = tweepy.OAuthHandler(
         os.environ["TWITTER_API_KEY"],
         os.environ["TWITTER_API_SECRET"]
     )
-    auth.set_access_token(
+    auth_v1_1.set_access_token(
         os.environ["TWITTER_ACCESS_TOKEN"],
         os.environ["TWITTER_ACCESS_TOKEN_SECRET"]
     )
-    twitter_api = tweepy.API(auth)
+    api_v1_1 = tweepy.API(auth_v1_1)
     
-    return model, twitter_api
+    return model, client, api_v1_1
 
 def get_english_quote():
     """ZenQuotes APIから英語の名言を取得"""
@@ -68,9 +77,9 @@ def generate_quote(model):
     
     # フォールバック名言
     fallback_quotes = [
-        ("Life is what happens when you\\'re busy making other plans.", "John Lennon", "人生とは、他の計画を立てるのに忙しいときに起こるものだ。"),
+        ("Life is what happens when you\\\'re busy making other plans.", "John Lennon", "人生とは、他の計画を立てるのに忙しいときに起こるものだ。"),
         ("The only way to do great work is to love what you do.", "Steve Jobs", "素晴らしい仕事をする唯一の方法は、自分のやっていることを愛することだ。"),
-        ("In three words I can sum up everything I\\'ve learned about life: it goes on.", "Robert Frost", "人生について学んだすべてを3つの言葉で要約できる。それは続くということだ。")
+        ("In three words I can sum up everything I\\\'ve learned about life: it goes on.", "Robert Frost", "人生について学んだすべてを3つの言葉で要約できる。それは続くということだ。")
     ]
     return random.choice(fallback_quotes)
 
@@ -97,7 +106,7 @@ def get_background_image():
                 "h": 600
             }
             headers = {
-                "Authorization": f"Client-ID {os.environ['UNSPLASH_ACCESS_KEY']}"
+                "Authorization": f"Client-ID {os.environ["UNSPLASH_ACCESS_KEY"]}"
             }
             
             response = requests.get(url, params=params, headers=headers)
@@ -196,7 +205,7 @@ def create_quote_image(quote, author, japanese_translation, background_img):
     
     return background_img.convert("RGB")
 
-def post_to_twitter(twitter_api, quote, author, japanese_translation, image):
+def post_to_twitter(client, api_v1_1, quote, author, japanese_translation, image):
     """Twitterに投稿"""
     try:
         # 画像を一時ファイルに保存
@@ -216,13 +225,14 @@ def post_to_twitter(twitter_api, quote, author, japanese_translation, image):
                     quote = quote[:max_english_quote_len-3] + "..."
                 tweet_text = f"\"{quote}\" - {author}\n({japanese_translation})\n\n#名言 #格言 #inspiration #quote"
             
-            # 画像をアップロード
-            media = twitter_api.media_upload(tmp_file.name)
+            # 画像をv1.1 APIでアップロード
+            media = api_v1_1.media_upload(tmp_file.name)
             
-            # ツイートを投稿
-            twitter_api.update_status(status=tweet_text, media_ids=[media.media_id])
+            # ツイートをv2 APIで投稿
+            response = client.create_tweet(text=tweet_text, media_ids=[media.media_id])
             
             print(f"Successfully tweeted: {tweet_text}")
+            print(f"Tweet ID: {response.data['id']}")
             
             # 一時ファイルを削除
             os.unlink(tmp_file.name)
@@ -235,7 +245,7 @@ def main():
     """メイン処理"""
     try:
         print("Setting up APIs...")
-        model, twitter_api = setup_apis()
+        model, client, api_v1_1 = setup_apis()
         
         print("Generating quote...")
         english_quote, english_author, japanese_translation = generate_quote(model)
@@ -248,7 +258,7 @@ def main():
         quote_image = create_quote_image(english_quote, english_author, japanese_translation, background_img)
         
         print("Posting to Twitter...")
-        post_to_twitter(twitter_api, english_quote, english_author, japanese_translation, quote_image)
+        post_to_twitter(client, api_v1_1, english_quote, english_author, japanese_translation, quote_image)
         
         print("Successfully completed auto tweet!")
         
@@ -258,4 +268,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
