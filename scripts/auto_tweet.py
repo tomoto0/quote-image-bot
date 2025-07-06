@@ -77,9 +77,9 @@ def generate_quote(model):
     
     # フォールバック名言
     fallback_quotes = [
-        ("Life is what happens when you\\\'re busy making other plans.", "John Lennon", "人生とは、他の計画を立てるのに忙しいときに起こるものだ。"),
+        ("Life is what happens when you\\\\'re busy making other plans.", "John Lennon", "人生とは、他の計画を立てるのに忙しいときに起こるものだ。"),
         ("The only way to do great work is to love what you do.", "Steve Jobs", "素晴らしい仕事をする唯一の方法は、自分のやっていることを愛することだ。"),
-        ("In three words I can sum up everything I\\\'ve learned about life: it goes on.", "Robert Frost", "人生について学んだすべてを3つの言葉で要約できる。それは続くということだ。")
+        ("In three words I can sum up everything I\\\\'ve learned about life: it goes on.", "Robert Frost", "人生について学んだすべてを3つの言葉で要約できる。それは続くということだ。")
     ]
     return random.choice(fallback_quotes)
 
@@ -106,7 +106,7 @@ def get_background_image():
                 "h": 600
             }
             headers = {
-                "Authorization": f"Client-ID {os.environ["UNSPLASH_ACCESS_KEY"]}"
+                "Authorization": f"Client-ID {os.environ['UNSPLASH_ACCESS_KEY']}"
             }
             
             response = requests.get(url, params=params, headers=headers)
