@@ -15,6 +15,7 @@ from io import BytesIO
 import tempfile
 import tweepy
 import google.generativeai as genai
+import time
 
 def setup_apis():
     """APIクライアントをセットアップ"""
@@ -226,10 +227,26 @@ def post_to_twitter(client, api_v1_1, quote, author, japanese_translation, image
                 tweet_text = f"\"{quote}\" - {author}\n({japanese_translation})\n\n#名言 #格言 #inspiration #quote"
             
             # 画像をv1.1 APIでアップロード
-            media = api_v1_1.media_upload(tmp_file.name)
+            for _ in range(3):
+                try:
+                    media = api_v1_1.media_upload(tmp_file.name)
+                    break
+                except tweepy.TooManyRequests as e:
+                    print(f"Rate limit exceeded for media upload. Retrying in 60 seconds...")
+                    time.sleep(60)
+            else:
+                raise tweepy.TooManyRequests("Failed to upload media after multiple retries.")
             
             # ツイートをv2 APIで投稿
-            response = client.create_tweet(text=tweet_text, media_ids=[media.media_id])
+            for _ in range(3):
+                try:
+                    response = client.create_tweet(text=tweet_text, media_ids=[media.media_id])
+                    break
+                except tweepy.TooManyRequests as e:
+                    print(f"Rate limit exceeded for tweet creation. Retrying in 60 seconds...")
+                    time.sleep(60)
+            else:
+                raise tweepy.TooManyRequests("Failed to create tweet after multiple retries.")
             
             print(f"Successfully tweeted: {tweet_text}")
             print(f"Tweet ID: {response.data['id']}")
