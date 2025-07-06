@@ -54,18 +54,20 @@ pnpm run build
 
 ## GitHub Actionsでの自動化
 
-このプロジェクトには、定期的に名言画像を生成してTwitterに投稿するGitHub Actionsワークフローが含まれています。
+このプロジェクトには、定期的に名言画像を生成してX (旧Twitter) に投稿するGitHub Actionsワークフローが含まれています。
 
 ### 必要なシークレット
 
 GitHubリポジトリの設定で以下のシークレットを設定してください：
 
 - `GEMINI_API_KEY`: Google Gemini APIキー
-- `TWITTER_API_KEY`: Twitter APIキー
-- `TWITTER_API_SECRET`: Twitter APIシークレット
-- `TWITTER_ACCESS_TOKEN`: Twitterアクセストークン
-- `TWITTER_ACCESS_TOKEN_SECRET`: Twitterアクセストークンシークレット
+- `TWITTER_API_KEY`: X (旧Twitter) APIキー
+- `TWITTER_API_SECRET`: X (旧Twitter) APIシークレット
+- `TWITTER_ACCESS_TOKEN`: X (旧Twitter) アクセストークン
+- `TWITTER_ACCESS_TOKEN_SECRET`: X (旧Twitter) アクセストークンシークレット
 - `UNSPLASH_ACCESS_KEY`: Unsplash APIキー（オプション）
+
+**注意**: X (旧Twitter) APIの仕様変更により、メディアのアップロードにはv1.1 APIを、ツイートの投稿にはv2 APIを使用しています。
 
 ## 技術スタック
 
@@ -79,4 +81,6 @@ GitHubリポジトリの設定で以下のシークレットを設定してく�
 ## ライセンス
 
 MIT License
+
+
 
