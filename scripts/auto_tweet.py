@@ -61,7 +61,7 @@ def get_english_quote():
 def translate_quote(model, text):
     """Gemini APIを使用してテキストを日本語に翻訳"""
     try:
-        prompt = f"以下の英語の名言を日本語に翻訳してください。\n\n{text}"
+        prompt = f"以下の英語の名言を日本語に翻訳してください。翻訳文のみを回答してください。\n\n{text}"
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
