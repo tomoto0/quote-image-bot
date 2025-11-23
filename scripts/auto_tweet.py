@@ -21,7 +21,7 @@ def setup_apis():
     """APIクライアントをセットアップ"""
     # Gemini API
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-2.0-flash-exp")
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
     # Twitter API
     # tweepy.Clientを使用するように変更
